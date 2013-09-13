@@ -1,0 +1,6 @@
+MANIFEST
+.tox
+.python-version
+*.pyc
+.env
+__pycache__
