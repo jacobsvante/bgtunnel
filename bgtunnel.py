@@ -16,51 +16,76 @@ Notes on default values
 Usage examples
 --------------
 
-    # Enable forwarding of a MS SQL server running at the default port
-    import tunnel
+    # Enable forwarding for a MS SQL server running on the remote SSH host
+    import bgtunnel
     >>> forwarder = bgtunnel.open(ssh_user='manager', ssh_address='1.2.3.4',
     ...                           bind_port=1433)
     >>> print(forwarder.host_port)
     59432
     >>> import somesqlpkg
-    >>> somesqlpkg.connect('mssql://myuser:mypassword@localhost:' +
+    >>> conn = somesqlpkg.connect('mssql://myuser:mypassword@localhost:' +
                                                        forwarder.port)
 
-
-    # As above but with SSH-style syntax and explicitly defined local port
-    >>> forwarder = bgtunnel.open(ssh_string='manager@1.2.3.4',
-    ...                           ssh_port='22',
-    ...                           bind_string='127.0.0.1:1433',
-    ...                           host_string='127.0.0.1:24314')
-    >>> print(forwarder.host_port)
-    24314
+    # Enable forwarding for an old AS400 DB2 server accessible only via
+    # the remote SSH host. Multiple ports need to be opened.
+    import bgtunnel
+    >>> ports = (446, 449, 8470, 8471, 8472, 8473, 8474, 8475, 8476)
+    >>> forwarders = []
+    >>> for port in ports:
+    ...     forwarders.append(bgtunnel.open(ssh_user='manager',
+    ...                                     ssh_address='1.2.3.4',
+                                            bind_address='192.168.0.5',
+    ...                                     bind_port=port, host_port=port))
+    >>> print(*tuple(f.host_port for f in forwarders))
+    446
+    449
+    8470
+    8471
+    8472
+    8473
+    8474
+    8475
+    8476
+    >>> import somesqlpkg
+    >>> conn = somesqlpkg.connect('mssql://myuser:mypassword@localhost:446')
 
 """
 from __future__ import print_function
-import socket
-import time
-import threading
 import getpass
-import sh
+import os
+import signal
+import socket
+import subprocess as subp
+import threading
+import time
 
 __version__ = '0.1.0'
-__all__ = ('open', 'SSHTunnelForwarderThread')
+__all__ = ('open'
+    'SSHTunnelForwarderThread')
 
 
-class SSHTunnelTimeout(Exception):
-    """ Raised when a timeout has been reached for an SSH tunnel connection """
+class SSHTunnelConnectTimeout(Exception):
+    """Raised when a timeout has been reached for connecting to SSH host """
+
+
+class SSHTunnelError(Exception):
+    """Raised when SSH connect returns an error """
 
 
 class SSHStringValueError(Exception):
-    """ Raised when a value is invalid for an SSHString object """
+    """Raised when a value is invalid for an SSHString object """
 
 
 class AddressPortStringValueError(Exception):
-    """ Raised when a value is invalid for an AddressPortString object """
+    """Raised when a value is invalid for an AddressPortString object """
 
 
 class StopSSHTunnel(Exception):
-    """ Raised inside SSHTunnelForwarderThread to close the connection """
+    """Raised inside SSHTunnelForwarderThread to close the connection """
+
+
+def _get_subp_devnull():
+        return os.open(os.devnull, os.O_RDWR)
 
 
 def get_available_port():
@@ -80,19 +105,11 @@ class SSHString(object):
     addr_default = None
     exception_class = SSHStringValueError
 
-    def __init__(self, string=None, user=None, address=None, port=None):
-        self.user, self.address, self.port = self.parse(string or '')
+    def __init__(self, user=None, address=None, port=None):
 
-        if user is not None:
-            self.user = user
-        if address is not None:
-            self.address = address
-        if port is not None:
-            self.port = port
-
-        self.user = self.user or self.user_default
-        self.address = self.address or self.addr_default
-        self.port = self.port or self.port_default
+        self.user = user or self.user_default
+        self.address = address or self.addr_default
+        self.port = port or self.port_default
 
         self.validate()
 
@@ -129,6 +146,9 @@ class AddressPortString(SSHString):
 
 
 class SSHTunnelForwarderThread(threading.Thread):
+    """The SSH forwarding thread
+    Usually not interacted with directly.
+    """
 
     daemon = True
 
@@ -137,34 +157,33 @@ class SSHTunnelForwarderThread(threading.Thread):
             for to_attr, from_attr in zip(attrs, ('address', 'port')):
                 setattr(self, to_attr, getattr(from_obj, from_attr))
 
-    def __init__(self, ssh_string=None, bind_string=None, host_string=None,
-                 ssh_user=None, ssh_address=None, ssh_port=22,
+    def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
                  silent=False):
+        self.sigint_received = False
+        self.stdout = None
+        self.stderr = None
 
-        host_port = host_port or get_available_port()
-
-        # Set to true once connected
         self.ssh_is_ready = False
 
         # If the tunnel creation message should be suppressed
         self.silent = silent
 
         # The ssh connect string
-        self.ssh_string = SSHString(ssh_string, user=ssh_user,
+        self.ssh_string = SSHString(user=ssh_user,
                                     address=ssh_address, port=ssh_port)
         self.ssh_user = self.ssh_string.user
         self.__setattrs(self.ssh_string, ('ssh_address', 'ssh_port'))
 
         # The host to bind to locally
-        self.bind_string = AddressPortString(bind_string, address=bind_address,
+        self.bind_string = AddressPortString(address=bind_address,
                                              port=bind_port)
         self.__setattrs(self.bind_string, ('bind_address', 'bind_port'))
 
         # The host on the remote end to connect to
-        self.host_string = AddressPortString(host_string, address=host_address,
-                                             port=host_port)
+        self.host_string = AddressPortString(address=host_address,
+                                        port=host_port or get_available_port())
         self.__setattrs(self.host_string, ('host_address', 'host_port'))
 
         super(SSHTunnelForwarderThread, self).__init__()
@@ -179,28 +198,64 @@ class SSHTunnelForwarderThread(threading.Thread):
     def forwarder_string(self):
         return u'{0}:{1}'.format(self.bind_string, self.host_string)
 
+    @property
+    def cmd(self):
+        return ('ssh', '-T',
+                '-p', unicode(self.ssh_string.port),
+                '-L', self.forwarder_string,
+                unicode(self.ssh_string))
+
+    @property
+    def cmd_string(self):
+        return subp.list2cmdline(self.cmd)
+
+    def _get_ssh_process(self):
+        if not hasattr(self, '_process'):
+            self._process = subp.Popen(self.cmd, stdout=subp.PIPE,
+                               stderr=subp.PIPE, stdin=subp.PIPE)
+        return self._process
+
+    def _validate_ssh_process(self, proc):
+        while True:
+            stdout_line = proc.stdout.readline()
+            if stdout_line:
+                return True
+            stderr_line = proc.stderr.readline()
+            if stderr_line:
+                return stderr_line
+
     def close(self):
-        # TODO: Implement
-        pass
+        self._process.send_signal(signal.SIGINT)
+        self.sigint_received = True
 
     def run(self):
-        cmd = sh.ssh(self.ssh_string, '-T', p=self.ssh_string.port,
-                     L=self.forwarder_string, _iter=True)
+        proc = self._get_ssh_process()
+        validation_ret = self._validate_ssh_process(proc)
+        if validation_ret is True:
+            if not self.silent:
+                print(u'Started tunnel with command:'
+                      u' {0}'.format(self.cmd_string))
+            self.ssh_is_ready = True
+        else:
+            self.stderr = validation_ret
+            return
 
-        # Iterate over stdout (default for _iter method) and break
-        # when a line is encountered
-        for line in cmd:
-            if line:
-                self.ssh_is_ready = True
-                if not self.silent:
-                    print(u'Started tunnel with command: {0}'.format(cmd.ran))
-                break
-        # Keep the process alive
-        cmd.wait()
+        wait_time = 0.5
+        retcode = None
+        while retcode is None:
+            if self.sigint_received:
+                return
+            retcode = proc.poll()
+            if retcode is not None and retcode > 0:
+                self.stderr = proc.stderr.read()
+                return
+            else:
+                self.stdout
+            time.sleep(wait_time)
 
 
 def open(*args, **kwargs):
-    """ Shortcut to opening an ssh tunnel
+    """Open an SSH tunnel in the background
     Blocks until the connection is successfully created or 60 seconds
     have passed. The timeout value can be overridden with the `timeout`
     kwarg.
@@ -211,8 +266,10 @@ def open(*args, **kwargs):
     t.start()
     msg = 'The connection timeout value of {0} seconds has passed for {1}.'
     while True:
+        if t.stderr:
+            raise SSHTunnelError(t.stderr)
         if timeout_countdown <= 0:
-            raise SSHTunnelTimeout(msg.format(timeout, t))
+            raise SSHTunnelConnectTimeout(msg.format(timeout, t.cmd))
         if t.ssh_is_ready is True:
             break
         else:
