@@ -1,3 +1,5 @@
+bgtunnel.egg-info/
+dist/
 MANIFEST
 .tox
 .python-version

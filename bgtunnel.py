@@ -51,17 +51,28 @@ Usage examples
 
 """
 from __future__ import print_function
+import argparse
 import getpass
-import os
 import signal
+import shlex
 import socket
 import subprocess as subp
+import sys
 import threading
 import time
 
-__version__ = '0.1.0'
-__all__ = ('open'
-    'SSHTunnelForwarderThread')
+__version__ = '0.2.0'
+
+# NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
+#       would replace the builtin.
+__all__ = ('SSHTunnelForwarderThread', )
+
+
+class UnicodeMagicMixin(object):
+    if sys.version_info > (3, 0):
+        __str__ = lambda x: x.__unicode__()
+    else:
+        __str__ = lambda x: unicode(x).encode('utf-8')
 
 
 class SSHTunnelConnectTimeout(Exception):
@@ -84,8 +95,21 @@ class StopSSHTunnel(Exception):
     """Raised inside SSHTunnelForwarderThread to close the connection """
 
 
-def _get_subp_devnull():
-        return os.open(os.devnull, os.O_RDWR)
+def get_ssh_path():
+    proc = subp.Popen(('which', 'ssh'), stdout=subp.PIPE, stderr=subp.PIPE)
+    stdout, stderr = proc.communicate()
+    return stdout.strip()
+
+
+def validate_ssh_cmd_exists(path):
+    check_str = u'usage: ssh'
+    proc = subp.Popen(('ssh', ), stdout=subp.PIPE, stderr=subp.PIPE)
+    stdout, stderr = proc.communicate()
+    if (check_str in stderr.decode('utf-8') or
+        check_str in stdout.decode('utf-8')):
+        return True
+    else:
+        return False
 
 
 def get_available_port():
@@ -97,7 +121,7 @@ def get_available_port():
     return port
 
 
-class SSHString(object):
+class SSHString(UnicodeMagicMixin):
 
     validate_keys = ('user', 'address')
     user_default = getpass.getuser()
@@ -145,7 +169,7 @@ class AddressPortString(SSHString):
         return u'{0}:{1}'.format(self.address, self.port)
 
 
-class SSHTunnelForwarderThread(threading.Thread):
+class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     """The SSH forwarding thread
     Usually not interacted with directly.
     """
@@ -153,17 +177,18 @@ class SSHTunnelForwarderThread(threading.Thread):
     daemon = True
 
     def __setattrs(self, from_obj, attrs):
-            assert len(attrs) == 2, 'Wrong length'
-            for to_attr, from_attr in zip(attrs, ('address', 'port')):
-                setattr(self, to_attr, getattr(from_obj, from_attr))
+        assert len(attrs) == 2, 'Wrong length'
+        for to_attr, from_attr in zip(attrs, ('address', 'port')):
+            setattr(self, to_attr, getattr(from_obj, from_attr))
 
     def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
-                 silent=False):
+                 silent=False, ssh_path=None):
         self.sigint_received = False
         self.stdout = None
         self.stderr = None
+        self.ssh_path = ssh_path or get_ssh_path()
 
         self.ssh_is_ready = False
 
@@ -178,13 +203,15 @@ class SSHTunnelForwarderThread(threading.Thread):
 
         # The host to bind to locally
         self.bind_string = AddressPortString(address=bind_address,
-                                             port=bind_port)
+                                        port=bind_port or get_available_port())
         self.__setattrs(self.bind_string, ('bind_address', 'bind_port'))
 
         # The host on the remote end to connect to
         self.host_string = AddressPortString(address=host_address,
-                                        port=host_port or get_available_port())
+                                             port=host_port)
         self.__setattrs(self.host_string, ('host_address', 'host_port'))
+
+        validate_ssh_cmd_exists(self.ssh_path)
 
         super(SSHTunnelForwarderThread, self).__init__()
 
@@ -200,10 +227,13 @@ class SSHTunnelForwarderThread(threading.Thread):
 
     @property
     def cmd(self):
-        return ('ssh', '-T',
-                '-p', unicode(self.ssh_string.port),
-                '-L', self.forwarder_string,
-                unicode(self.ssh_string))
+        ssh_path = shlex.split(self.ssh_path)
+        return ssh_path + [
+            '-T',
+            '-p', str(self.ssh_string.port),
+            '-L', self.forwarder_string,
+            str(self.ssh_string),
+        ]
 
     @property
     def cmd_string(self):
@@ -276,3 +306,30 @@ def open(*args, **kwargs):
             timeout_countdown - wait_time
             time.sleep(wait_time)
     return t
+
+
+__cmddoc__ = """bgtunnel - Initiate SSH tunnels
+Useful when you need to connect to a database only accessible through
+another ssh-enabled host. It works by opening a port forwarding ssh
+connection in the background, using threads.
+"""
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description=__cmddoc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('-u', '--ssh-user', help='The ssh username')
+    parser.add_argument('-a', '--ssh-address', help='The ssh address')
+    parser.add_argument('-P', '--ssh-port', type=int, default=22,
+                        help='The ssh port')
+    parser.add_argument('-b', '--bind-address', help="The bind address.")
+    parser.add_argument('-B', '--bind-port', type=int, help="The bind port.")
+    parser.add_argument('-r', '--host-address', help="The host address.")
+    parser.add_argument('-R', '--host-port', type=int, help="The host port.")
+    args = parser.parse_args()
+    open(**vars(args))
+
+    # Keep the process running so the SSH connection doesn't close.
+    while True:
+        time.sleep(1)
