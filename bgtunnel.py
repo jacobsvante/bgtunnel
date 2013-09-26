@@ -61,7 +61,7 @@ import sys
 import threading
 import time
 
-__version__ = '0.2.0'
+__version__ = '0.2.2'
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
@@ -308,15 +308,14 @@ def open(*args, **kwargs):
     return t
 
 
-__cmddoc__ = """bgtunnel - Initiate SSH tunnels
-Useful when you need to connect to a database only accessible through
-another ssh-enabled host. It works by opening a port forwarding ssh
-connection in the background, using threads.
-"""
-
-if __name__ == '__main__':
+def main():
+    """bgtunnel - Initiate SSH tunnels
+    Useful when you need to connect to a database only accessible through
+    another ssh-enabled host. It works by opening a port forwarding ssh
+    connection in the background, using threads.
+    """
     parser = argparse.ArgumentParser(
-        description=__cmddoc__,
+        description=main.__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('-u', '--ssh-user', help='The ssh username')
@@ -333,3 +332,7 @@ if __name__ == '__main__':
     # Keep the process running so the SSH connection doesn't close.
     while True:
         time.sleep(1)
+
+
+if __name__ == '__main__':
+    main()

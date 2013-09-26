@@ -7,7 +7,8 @@ import sys
 
 
 appname = 'bgtunnel'
-version = __import__(appname).__version__
+app = __import__(appname)
+version = app.__version__
 
 
 read = lambda filepath: codecs.open(filepath, 'r', 'utf-8').read()
@@ -26,14 +27,18 @@ setup(
     name=appname,
     version=version,
     description="Initiate SSH tunnels in the background",
-    long_description=read(os.path.join(os.path.dirname(__file__),
-                                       'README.md')),
+    long_description=app.__doc__,
     py_modules=[appname],
     author='Jacob Magnusson',
     author_email='m@jacobian.se',
     url='https://github.com/jmagnusson/bgtunnel',
     license='BSD',
     platforms=['unix', 'macos'],
+    entry_points={
+        'console_scripts': {
+            'bgtunnel = bgtunnel:main',
+        },
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
