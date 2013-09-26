@@ -2,7 +2,7 @@
 from __future__ import print_function
 from setuptools import setup
 import codecs
-import os
+import subprocess as subp
 import sys
 
 
@@ -14,9 +14,12 @@ read = lambda filepath: codecs.open(filepath, 'r', 'utf-8').read()
 
 
 if sys.argv[-1] == 'publish':
-    os.system("python setup.py sdist upload")
-    print("You probably also want to tag the version now with:")
-    print("git tag -a {0} -m 'version {0}'\n  git push --tags".format(version))
+    subp.check_output(('python', 'setup.py', 'sdist', 'upload'))
+    # Git tagging. Yes I'm lazy!
+    if version not in subp.check_output(('git', 'tag', '-l', version)):
+        subp.check_output(('git', 'tag', '-a', version,
+                           '-m', 'Version {0}'.format(version)))
+        subp.check_output(('git', 'push', '--tags'))
     sys.exit()
 
 setup(
