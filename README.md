@@ -24,7 +24,7 @@ python 2.7+ or 3.3+
 
 Clone the repo:
 
-    git clone git@github.com:jmagnusson/bgtunnel.git
+    git clone https://github.com/jmagnusson/bgtunnel.git
 
 Install requirements for testing:
 
