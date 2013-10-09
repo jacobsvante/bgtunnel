@@ -10,7 +10,7 @@ Notes on default values
 
 * Bind address and host address defaults to "127.0.0.1"
 * SSH port defaults to 22
-* Local port defaults to picking a random available one, accessible from the
+* Host port defaults to picking a random available one, accessible from the
   object returned by the `open` function
 
 Usage examples
@@ -36,7 +36,7 @@ Usage examples
     ...                                     ssh_address='1.2.3.4',
                                             bind_address='192.168.0.5',
     ...                                     bind_port=port, host_port=port))
-    >>> print(*tuple(f.host_port for f in forwarders))
+    >>> print('\n'.join(f.host_port for f in forwarders))
     446
     449
     8470
