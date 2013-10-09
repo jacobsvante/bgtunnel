@@ -10,7 +10,7 @@ Notes on default values
 
 * Bind address and host address defaults to "127.0.0.1"
 * SSH port defaults to 22
-* Host port defaults to picking a random available one, accessible from the
+* Bind port defaults to picking a random available one, accessible from the
   object returned by the `open` function
 
 Usage examples
@@ -19,8 +19,8 @@ Usage examples
     # Enable forwarding for a MS SQL server running on the remote SSH host
     import bgtunnel
     >>> forwarder = bgtunnel.open(ssh_user='manager', ssh_address='1.2.3.4',
-    ...                           bind_port=1433)
-    >>> print(forwarder.host_port)
+    ...                           host_port=1433)
+    >>> print(forwarder.bind_port)
     59432
     >>> import somesqlpkg
     >>> conn = somesqlpkg.connect('mssql://myuser:mypassword@localhost:' +
@@ -36,7 +36,7 @@ Usage examples
     ...                                     ssh_address='1.2.3.4',
                                             bind_address='192.168.0.5',
     ...                                     bind_port=port, host_port=port))
-    >>> print('\n'.join(f.host_port for f in forwarders))
+    >>> print('\n'.join(f.bind_port for f in forwarders))
     446
     449
     8470
