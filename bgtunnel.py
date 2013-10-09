@@ -61,6 +61,11 @@ import sys
 import threading
 import time
 
+try:
+    from Queue import Queue, Empty # py2
+except ImportError:
+    from queue import Queue, Empty # py3
+
 __version__ = '0.2.2'
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
@@ -93,6 +98,15 @@ class AddressPortStringValueError(Exception):
 
 class StopSSHTunnel(Exception):
     """Raised inside SSHTunnelForwarderThread to close the connection """
+
+
+ON_POSIX = 'posix' in sys.builtin_module_names
+
+
+def enqueue_output(out, queue):
+    for line in iter(out.readline, b''):
+        queue.put(line)
+    out.close()
 
 
 def get_ssh_path():
@@ -142,13 +156,13 @@ class SSHString(UnicodeMagicMixin):
             if key not in self.validate_keys:
                 continue
             if not val:
-                raise self.exception_class(u'{0} cannot be empty'.format(key))
+                raise self.exception_class(u'{} cannot be empty'.format(key))
 
     def __unicode__(self):
-        return u'{0}@{1}'.format(self.user, self.address)
+        return u'{}@{}'.format(self.user, self.address)
 
     def __repr__(self):
-        return u'<{0}: {1}>'.format(self.__class__.__name__, self)
+        return u'<{}: {}>'.format(self.__class__.__name__, self)
 
     def parse(self, s):
         user = address = port = None
@@ -166,7 +180,7 @@ class AddressPortString(SSHString):
     exception_class = AddressPortStringValueError
 
     def __unicode__(self):
-        return u'{0}:{1}'.format(self.address, self.port)
+        return u'{}:{}'.format(self.address, self.port)
 
 
 class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
@@ -174,6 +188,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     Usually not interacted with directly.
     """
 
+    # Needs to be True so that the thread dies when bgtunnel quits.
     daemon = True
 
     def __setattrs(self, from_obj, attrs):
@@ -219,16 +234,22 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         return self.forwarder_string
 
     def __repr__(self):
-        return u'<SSHTunnelForwarderThread: {0}>'.format(self)
+        return u'<SSHTunnelForwarderThread: {}>'.format(self)
 
     @property
     def forwarder_string(self):
-        return u'{0}:{1}'.format(self.bind_string, self.host_string)
+        return u'{}:{}'.format(self.bind_string, self.host_string)
+
+    def get_ssh_options(self):
+        def opts(*opts):
+            return [s for opt in opts for s in ['-o', opt]]
+        return opts('BatchMode=yes')
 
     @property
     def cmd(self):
         ssh_path = shlex.split(self.ssh_path)
-        return ssh_path + [
+        options = self.get_ssh_options()
+        return ssh_path + options + [
             '-T',
             '-p', str(self.ssh_string.port),
             '-L', self.forwarder_string,
@@ -241,18 +262,40 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
     def _get_ssh_process(self):
         if not hasattr(self, '_process'):
-            self._process = subp.Popen(self.cmd, stdout=subp.PIPE,
-                               stderr=subp.PIPE, stdin=subp.PIPE)
+            self._process = subp.Popen(
+                self.cmd,
+                stdout=subp.PIPE,
+                stderr=subp.PIPE,
+                stdin=subp.PIPE,
+                close_fds=ON_POSIX,
+            )
         return self._process
 
+    def get_output_queue(self, file_handle):
+        q = Queue()
+        t = threading.Thread(target=enqueue_output, args=(file_handle, q))
+        t.daemon = True
+        t.start()
+        return q
+
     def _validate_ssh_process(self, proc):
+        stdout_queue = self.get_output_queue(proc.stdout)
+        stderr_queue = self.get_output_queue(proc.stderr)
         while True:
-            stdout_line = proc.stdout.readline()
-            if stdout_line:
-                return True
-            stderr_line = proc.stderr.readline()
-            if stderr_line:
-                return stderr_line
+            try:
+                stderr_line = stderr_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                if stderr_line.strip():
+                    return stderr_line
+            try:
+                stdout_line = stdout_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                if stdout_line.strip():
+                    return True
 
     def close(self):
         self._process.send_signal(signal.SIGINT)
@@ -264,7 +307,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         if validation_ret is True:
             if not self.silent:
                 print(u'Started tunnel with command:'
-                      u' {0}'.format(self.cmd_string))
+                      u' {}'.format(self.cmd_string))
             self.ssh_is_ready = True
         else:
             self.stderr = validation_ret
@@ -294,7 +337,7 @@ def open(*args, **kwargs):
     timeout = timeout_countdown = kwargs.pop('timeout', 60)
     t = SSHTunnelForwarderThread(*args, **kwargs)
     t.start()
-    msg = 'The connection timeout value of {0} seconds has passed for {1}.'
+    msg = 'The connection timeout value of {} seconds has passed for {}.'
     while True:
         if t.stderr:
             raise SSHTunnelError(t.stderr)

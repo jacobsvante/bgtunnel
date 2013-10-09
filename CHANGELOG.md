@@ -26,3 +26,10 @@
 **Date**: 2013-09-26
 
 * Made bgtunnel into a proper console script, installed on setup
+
+## 0.3.0
+
+**Date**: 2013-10-09
+
+* Raise exception on permission denied (password)
+* Made ssh connectivity checking more robust

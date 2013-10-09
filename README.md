@@ -17,7 +17,7 @@ Install using `pip`:
 
 ## Dependencies
 
-python 2.6, 2.7 or 3.3
+python 2.7+ or 3.3+
 
 
 ## Testing
