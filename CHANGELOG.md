@@ -1,35 +1,29 @@
 # Changelog
 
-## 0.1.0
+## 0.3.1 (2013-11-27)
 
-**Date**: 2013-09-13
+* Notify before starting tunnel and once started
 
-* Initial version
+## 0.3.0 (2013-10-09)
 
-## 0.1.1
+* Raise exception on permission denied (password)
+* Made ssh connectivity checking more robust
 
-**Date**: 2013-09-19
-
-* No longer requires sh package
-
-## 0.2.0
-
-**Date**: 2013-09-26
+## 0.2.0 (2013-09-26)
 
 * Added setup.py and registered to PyPI
 * Basic testing with nose and tox
 * Support for Python 2.6 and 3.3 in addition to 2.7
 * Added a command for running bgtunnel directly from the terminal
 
-## 0.2.2
+## 0.1.1 (2013-09-19)
 
-**Date**: 2013-09-26
+* No longer requires sh package
+
+## 0.2.2 (2013-09-26)
 
 * Made bgtunnel into a proper console script, installed on setup
 
-## 0.3.0
+## 0.1.0 (2013-09-13)
 
-**Date**: 2013-10-09
-
-* Raise exception on permission denied (password)
-* Made ssh connectivity checking more robust
+* Initial version

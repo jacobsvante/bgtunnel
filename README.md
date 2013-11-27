@@ -7,6 +7,8 @@
 
 `bgtunnel` is a python module for easily creating ssh tunnels in the background, from within python. An example use case is when you want to access a remote database. With `bgtunnel` all you need is ssh access to the remote machine and python installed.
 
+The package has no external dependencies. If you'd want to you could just drop in `bgtunnel.py` into your project.
+
 
 ## Installation
 

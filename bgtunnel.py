@@ -17,7 +17,7 @@ Usage examples
 --------------
 
     # Enable forwarding for a MS SQL server running on the remote SSH host
-    import bgtunnel
+    >>> import bgtunnel
     >>> forwarder = bgtunnel.open(ssh_user='manager', ssh_address='1.2.3.4',
     ...                           host_port=1433)
     >>> print(forwarder.bind_port)
@@ -28,14 +28,14 @@ Usage examples
 
     # Enable forwarding for an old AS400 DB2 server accessible only via
     # the remote SSH host. Multiple ports need to be opened.
-    import bgtunnel
-    >>> ports = (446, 449, 8470, 8471, 8472, 8473, 8474, 8475, 8476)
+    >>> import bgtunnel
+    >>> ports = [446, 449] + range(8470, 8477)
     >>> forwarders = []
     >>> for port in ports:
     ...     forwarders.append(bgtunnel.open(ssh_user='manager',
     ...                                     ssh_address='1.2.3.4',
-                                            bind_address='192.168.0.5',
-    ...                                     bind_port=port, host_port=port))
+                                            host_address='192.168.0.5',
+    ...                                     host_port=port, bind_port=port))
     >>> print('\n'.join(f.bind_port for f in forwarders))
     446
     449
@@ -62,11 +62,11 @@ import threading
 import time
 
 try:
-    from Queue import Queue, Empty # py2
+    from Queue import Queue, Empty  # py2
 except ImportError:
-    from queue import Queue, Empty # py3
+    from queue import Queue, Empty  # py3
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
@@ -119,8 +119,8 @@ def validate_ssh_cmd_exists(path):
     check_str = u'usage: ssh'
     proc = subp.Popen(('ssh', ), stdout=subp.PIPE, stderr=subp.PIPE)
     stdout, stderr = proc.communicate()
-    if (check_str in stderr.decode('utf-8') or
-        check_str in stdout.decode('utf-8')):
+    if (check_str in stderr.decode('utf-8')
+            or check_str in stdout.decode('utf-8')):
         return True
     else:
         return False
@@ -218,7 +218,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
         # The host to bind to locally
         self.bind_string = AddressPortString(address=bind_address,
-                                        port=bind_port or get_available_port())
+                                             port=(bind_port or
+                                                   get_available_port()))
         self.__setattrs(self.bind_string, ('bind_address', 'bind_port'))
 
         # The host on the remote end to connect to
@@ -302,12 +303,14 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         self.sigint_received = True
 
     def run(self):
+        if not self.silent:
+                print(u'Starting tunnel with command:'
+                      u' {}...'.format(self.cmd_string), end='')
         proc = self._get_ssh_process()
         validation_ret = self._validate_ssh_process(proc)
         if validation_ret is True:
             if not self.silent:
-                print(u'Started tunnel with command:'
-                      u' {}'.format(self.cmd_string))
+                print(u'started!')
             self.ssh_is_ready = True
         else:
             self.stderr = validation_ret
