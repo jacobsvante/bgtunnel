@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 (2013-12-18)
+
+* Use sudo for ssh command if a privileged host port was specified.
+
 ## 0.3.1 (2013-11-27)
 
 * Notify before starting tunnel and once started
