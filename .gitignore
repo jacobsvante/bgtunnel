@@ -4,5 +4,7 @@ MANIFEST
 .tox
 .python-version
 *.pyc
+*.sublime-project
+*.sublime-workspace
 .env
 __pycache__

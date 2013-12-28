@@ -53,6 +53,7 @@ Usage examples
 from __future__ import print_function
 import argparse
 import getpass
+import os
 import signal
 import shlex
 import socket
@@ -66,11 +67,17 @@ try:
 except ImportError:
     from queue import Queue, Empty  # py3
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
 __all__ = ('SSHTunnelForwarderThread', )
+
+
+class RawArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                                       argparse.RawTextHelpFormatter):
+    """Retain both raw text descriptions and argument defaults"""
+    pass
 
 
 class UnicodeMagicMixin(object):
@@ -101,6 +108,10 @@ class StopSSHTunnel(Exception):
 
 
 ON_POSIX = 'posix' in sys.builtin_module_names
+
+
+def is_root_user():
+    return os.geteuid() == 0
 
 
 def enqueue_output(out, queue):
@@ -199,8 +210,9 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
-                 silent=False, ssh_path=None):
+                 silent=False, ssh_path=None, dont_sudo=False):
         self.sigint_received = False
+        self.dont_sudo = dont_sudo
         self.stdout = None
         self.stderr = None
         self.ssh_path = ssh_path or get_ssh_path()
@@ -231,6 +243,15 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
         super(SSHTunnelForwarderThread, self).__init__()
 
+    @property
+    def use_sudo(self):
+        if self.dont_sudo is True:
+            return False
+        elif is_root_user():
+            return False
+        else:
+            return self.host_string.port <= 1024
+
     def __unicode__(self):
         return self.forwarder_string
 
@@ -249,6 +270,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     @property
     def cmd(self):
         ssh_path = shlex.split(self.ssh_path)
+        if self.use_sudo:
+            ssh_path = ['sudo'] + ssh_path
         options = self.get_ssh_options()
         return ssh_path + options + [
             '-T',
@@ -270,6 +293,11 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                 stdin=subp.PIPE,
                 close_fds=ON_POSIX,
             )
+            if self.use_sudo:
+                print('\nA privileged host port was specified without '
+                      'elevating the process, you might be prompted to enter '
+                      'your sudo password in order to run the ssh process in '
+                      'elevated mode.')
         return self._process
 
     def get_output_queue(self, file_handle):
@@ -363,7 +391,7 @@ def main():
     """
     parser = argparse.ArgumentParser(
         description=main.__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RawArgumentDefaultsHelpFormatter,
     )
     parser.add_argument('-u', '--ssh-user', help='The ssh username')
     parser.add_argument('-a', '--ssh-address', help='The ssh address')
@@ -373,6 +401,10 @@ def main():
     parser.add_argument('-B', '--bind-port', type=int, help="The bind port.")
     parser.add_argument('-r', '--host-address', help="The host address.")
     parser.add_argument('-R', '--host-port', type=int, help="The host port.")
+    parser.add_argument('-n', '--no-sudo', dest='dont_sudo',
+                        action='store_const', default=False, const=True,
+                        help="Don't use sudo when a privileged host port is "
+                             "specified and not running as root user.")
     args = parser.parse_args()
     open(**vars(args))
 
