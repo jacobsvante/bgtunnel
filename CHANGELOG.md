@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4 (2014-01-03)
+
+* Add identity_file option. Thanks to @kermit666
+
 ## 0.3.3 (2014-01-03)
 
 * SIGTERM instead of SIGINT for background ssh process. Sometimes the process would not exit with SIGINT. Thanks to @fermayo
