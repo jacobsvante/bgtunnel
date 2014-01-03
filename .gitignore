@@ -3,6 +3,7 @@ dist/
 MANIFEST
 .tox
 .python-version
+.venv
 *.pyc
 *.sublime-project
 *.sublime-workspace
