@@ -210,7 +210,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
-                 silent=False, ssh_path=None, dont_sudo=False):
+                 silent=False, ssh_path=None, dont_sudo=False,
+                 identity_file=None):
         self.sigint_received = False
         self.dont_sudo = dont_sudo
         self.stdout = None
@@ -240,6 +241,9 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         self.__setattrs(self.host_string, ('host_address', 'host_port'))
 
         validate_ssh_cmd_exists(self.ssh_path)
+
+        # The path to the private key file to use
+        self.identity_file = identity_file
 
         super(SSHTunnelForwarderThread, self).__init__()
 
@@ -273,6 +277,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         if self.use_sudo:
             ssh_path = ['sudo'] + ssh_path
         options = self.get_ssh_options()
+        if self.identity_file:
+            options+=['-i', self.identity_file]
         return ssh_path + options + [
             '-T',
             '-p', str(self.ssh_string.port),
