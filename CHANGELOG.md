@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5 (2014-01-03)
+
+* Fix AttributeError introduced in 0.3.4
+
 ## 0.3.4 (2014-01-03)
 
 * Add identity_file option. Thanks to @kermit666

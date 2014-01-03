@@ -66,7 +66,7 @@ try:
 except ImportError:
     from queue import Queue, Empty  # py3
 
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
@@ -246,7 +246,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         validate_ssh_cmd_exists(self.ssh_path)
 
         # The path to the private key file to use
-        self.identity_file = normalize_path(identity_file)
+        self.identity_file = normalize_path(identity_file or '') or None
 
         super(SSHTunnelForwarderThread, self).__init__()
 
