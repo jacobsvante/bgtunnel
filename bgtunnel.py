@@ -54,7 +54,6 @@ from __future__ import print_function
 import argparse
 import getpass
 import os
-import signal
 import shlex
 import socket
 import subprocess as subp
@@ -211,7 +210,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False):
-        self.sigint_received = False
+        self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
         self.stderr = None
@@ -329,7 +328,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def close(self):
         self._process.terminate()
         self._process.wait()
-        self.sigint_received = True
+        self.should_exit = True
 
     def run(self):
         if not self.silent:
@@ -348,7 +347,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         wait_time = 0.5
         retcode = None
         while retcode is None:
-            if self.sigint_received:
+            if self.should_exit:
                 return
             retcode = proc.poll()
             if retcode is not None and retcode > 0:
