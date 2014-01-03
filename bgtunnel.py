@@ -109,6 +109,10 @@ class StopSSHTunnel(Exception):
 ON_POSIX = 'posix' in sys.builtin_module_names
 
 
+def normalize_path(path):
+    return os.path.abspath(os.path.expanduser(path))
+
+
 def is_root_user():
     return os.geteuid() == 0
 
@@ -209,7 +213,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
-                 silent=False, ssh_path=None, dont_sudo=False):
+                 silent=False, ssh_path=None, dont_sudo=False,
+                 identity_file=None):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
@@ -240,6 +245,9 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
         validate_ssh_cmd_exists(self.ssh_path)
 
+        # The path to the private key file to use
+        self.identity_file = normalize_path(identity_file)
+
         super(SSHTunnelForwarderThread, self).__init__()
 
     @property
@@ -269,9 +277,15 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     @property
     def cmd(self):
         ssh_path = shlex.split(self.ssh_path)
+
         if self.use_sudo:
             ssh_path = ['sudo'] + ssh_path
+
         options = self.get_ssh_options()
+
+        if self.identity_file is not None:
+            options += ['-i', self.identity_file]
+
         return ssh_path + options + [
             '-T',
             '-p', str(self.ssh_string.port),
@@ -400,6 +414,8 @@ def main():
     parser.add_argument('-B', '--bind-port', type=int, help="The bind port.")
     parser.add_argument('-r', '--host-address', help="The host address.")
     parser.add_argument('-R', '--host-port', type=int, help="The host port.")
+    parser.add_argument('-i', '--identity-file', help="Identity file path.",
+                        default=None)
     parser.add_argument('-n', '--no-sudo', dest='dont_sudo',
                         action='store_const', default=False, const=True,
                         help="Don't use sudo when a privileged host port is "
