@@ -327,7 +327,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                     return True
 
     def close(self):
-        self._process.send_signal(signal.SIGINT)
+        self._process.terminate()
+        self._process.wait()
         self.sigint_received = True
 
     def run(self):
