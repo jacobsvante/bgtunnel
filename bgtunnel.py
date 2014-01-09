@@ -126,7 +126,7 @@ def enqueue_output(out, queue):
 def get_ssh_path():
     proc = subp.Popen(('which', 'ssh'), stdout=subp.PIPE, stderr=subp.PIPE)
     stdout, stderr = proc.communicate()
-    return stdout.strip()
+    return stdout.strip().decode('utf-8')
 
 
 def validate_ssh_cmd_exists(path):
