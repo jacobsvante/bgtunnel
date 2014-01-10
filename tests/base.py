@@ -2,6 +2,7 @@
 from __future__ import print_function
 import os
 import sys
+import six
 from getpass import getuser
 import bgtunnel
 from bgtunnel import get_available_port
@@ -29,3 +30,7 @@ def test_create_tunnel():
     assert t.ssh_address == ssh_address
     assert t.host_address == host_address
     assert t.bind_address == bind_address
+
+def test_get_ssh_path():
+    ssh_path = bgtunnel.get_ssh_path()
+    assert isinstance(ssh_path, six.string_types)
