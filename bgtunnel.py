@@ -214,12 +214,13 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False,
-                 identity_file=None):
+                 identity_file=None, expect_hello=True):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
         self.stderr = None
         self.ssh_path = ssh_path or get_ssh_path()
+        self.expect_hello = expect_hello
 
         self.ssh_is_ready = False
 
@@ -323,6 +324,9 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def _validate_ssh_process(self, proc):
         stdout_queue = self.get_output_queue(proc.stdout)
         stderr_queue = self.get_output_queue(proc.stderr)
+        if not self.expect_hello:
+          return True
+
         while True:
             try:
                 stderr_line = stderr_queue.get_nowait()
