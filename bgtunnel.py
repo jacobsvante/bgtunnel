@@ -66,7 +66,8 @@ try:
 except ImportError:
     from queue import Queue, Empty  # py3
 
-__version__ = '0.3.5'
+__version_info__ = (0, 3, 6)
+__version__ = '.'.join(str(i) for i in __version_info__)
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
@@ -322,10 +323,10 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         return q
 
     def _validate_ssh_process(self, proc):
+        if not self.expect_hello:
+            return True
         stdout_queue = self.get_output_queue(proc.stdout)
         stderr_queue = self.get_output_queue(proc.stderr)
-        if not self.expect_hello:
-          return True
 
         while True:
             try:
