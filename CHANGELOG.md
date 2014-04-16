@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6 (2014-04-16)
+
+* Introduced a workaround for the connection validation expecting the server to write to stdout on a successful connection. Pass in `expect_hello=False` to `bgtunnel.open` to bypass the validation check. Thanks @hamiltont for the fix.
+
 ## 0.3.5 (2014-01-03)
 
 * Fix AttributeError introduced in 0.3.4
