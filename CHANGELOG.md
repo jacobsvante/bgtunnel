@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7 (2014-08-07)
+
+* Fixed typo in setup.py Thanks to @soby for PR
+
 ## 0.3.6 (2014-04-16)
 
 * Introduced a workaround for the connection validation expecting the server to write to stdout on a successful connection. Pass in `expect_hello=False` to `bgtunnel.open` to bypass the validation check. Thanks @hamiltont for the fix.

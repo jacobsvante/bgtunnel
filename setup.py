@@ -35,9 +35,9 @@ setup(
     license='BSD',
     platforms=['unix', 'macos'],
     entry_points={
-        'console_scripts': {
+        'console_scripts': [
             'bgtunnel = bgtunnel:main',
-        },
+        ],
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
