@@ -87,10 +87,6 @@ class UnicodeMagicMixin(object):
         __str__ = lambda x: unicode(x).encode('utf-8')  # noqa
 
 
-class SSHTunnelConnectTimeout(Exception):
-    """Raised when a timeout has been reached for connecting to SSH host """
-
-
 class SSHTunnelError(Exception):
     """Raised when SSH connect returns an error """
 
@@ -215,13 +211,16 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False,
-                 identity_file=None, expect_hello=True):
+                 identity_file=None, expect_hello=True, timeout=60,
+                 connection_attempts=1):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
         self.stderr = None
         self.ssh_path = ssh_path or get_ssh_path()
         self.expect_hello = expect_hello
+        self.connection_timeout = timeout
+        self.connection_attempts = connection_attempts
 
         self.ssh_is_ready = False
 
@@ -274,7 +273,11 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     def get_ssh_options(self):
         def opts(*opts):
             return [s for opt in opts for s in ['-o', opt]]
-        return opts('BatchMode=yes')
+        return opts(
+            'BatchMode=yes',
+            'ConnectionAttempts={}'.format(self.connection_attempts),
+            'ConnectTimeout={}'.format(self.connection_timeout),
+        )
 
     @property
     def cmd(self):
@@ -380,25 +383,18 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
 def open(*args, **kwargs):
     """Open an SSH tunnel in the background
-    Blocks until the connection is successfully created or 60 seconds
-    have passed. The timeout value can be overridden with the `timeout`
-    kwarg.
+    Blocks until the connection is successfully created or an error is thrown
+    by the ssh process.
     """
-    wait_time = 0.1
-    timeout = timeout_countdown = kwargs.pop('timeout', 60)
     t = SSHTunnelForwarderThread(*args, **kwargs)
     t.start()
-    msg = 'The connection timeout value of {} seconds has passed for {}.'
     while True:
         if t.stderr:
             raise SSHTunnelError(t.stderr)
-        if timeout_countdown <= 0:
-            raise SSHTunnelConnectTimeout(msg.format(timeout, t.cmd))
         if t.ssh_is_ready is True:
             break
         else:
-            timeout_countdown -= wait_time
-            time.sleep(wait_time)
+            time.sleep(0.1)
     return t
 
 
