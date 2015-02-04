@@ -84,7 +84,7 @@ class UnicodeMagicMixin(object):
     if sys.version_info > (3, 0):
         __str__ = lambda x: x.__unicode__()
     else:
-        __str__ = lambda x: unicode(x).encode('utf-8')
+        __str__ = lambda x: unicode(x).encode('utf-8')  # noqa
 
 
 class SSHTunnelConnectTimeout(Exception):
@@ -334,7 +334,8 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
             except Empty:
                 pass
             else:
-                if stderr_line.strip() and not "Warning: Permanently added" in stderr_line:
+                if (stderr_line.strip() and
+                        not (b"Warning: Permanently added" in stderr_line)):
                     return stderr_line
             try:
                 stdout_line = stdout_queue.get_nowait()
