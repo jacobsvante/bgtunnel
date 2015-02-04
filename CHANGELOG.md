@@ -1,8 +1,14 @@
 # Changelog
 
+## 0.3.8 (2015-02-04)
+
+* Make connection timeout handling better. Thanks to @howaryoo for the heads up in his PR
+* Add support for setting the amount of connection attempts to make
+* Fix Python 3 str/bytes exception that occurred when `Permanently added` warning was reported by the ssh command
+
 ## 0.3.7 (2014-08-07)
 
-* Fixed typo in setup.py Thanks to @soby for PR
+* Fixed typo in setup.py. Thanks to @soby for PR
 
 ## 0.3.6 (2014-04-16)
 
