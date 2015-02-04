@@ -396,7 +396,7 @@ def open(*args, **kwargs):
         if t.ssh_is_ready is True:
             break
         else:
-            timeout_countdown - wait_time
+            timeout_countdown -= wait_time
             time.sleep(wait_time)
     return t
 
