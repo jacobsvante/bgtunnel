@@ -170,9 +170,12 @@ class SSHString(UnicodeMagicMixin):
                 raise self.exception_class(u'{} cannot be empty'.format(key))
 
     def __unicode__(self):
-        return u'{}@{}'.format(self.user, self.address)
+        if self.user != SSHString.user_default:
+            return u'{}@{}'.format(self.user, self.address)
+        else:
+            return u'{}'.format(self.address)
 
-    def __repr__(self):
+    def __repr__(self):        
         return u'<{}: {}>'.format(self.__class__.__name__, self)
 
     def parse(self, s):
@@ -191,7 +194,10 @@ class AddressPortString(SSHString):
     exception_class = AddressPortStringValueError
 
     def __unicode__(self):
-        return u'{}:{}'.format(self.address, self.port)
+        if self.address != AddressPortString.addr_default :
+            return u'{}:{}'.format(self.address, self.port)
+        else:
+            return u'{}'.format(self.port)
 
 
 class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
