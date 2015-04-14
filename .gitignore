@@ -9,3 +9,4 @@ MANIFEST
 *.sublime-workspace
 .env
 __pycache__
+/build/
