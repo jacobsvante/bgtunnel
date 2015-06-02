@@ -41,4 +41,4 @@ Ensure that you have all python versions listed in `tox.ini` then to run the tes
 [docs]
 
 [twitter]: https://twitter.com/jacobsvante_
-[docs]: https://github.com/jmagnusson/bgtunnel
+[docs]: https://github.com/jmagnusson/bgtunnel/blob/master/bgtunnel.py#L1
