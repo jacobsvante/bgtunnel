@@ -30,7 +30,7 @@ Clone the repo:
 
 Install requirements for testing:
 
-    pip install -r test_requirements.txt
+    pip install -r requirements_test.txt
 
 Ensure that you have all python versions listed in `tox.ini` then to run the tests simply issue the following:
 
