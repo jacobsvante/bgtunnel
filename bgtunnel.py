@@ -212,7 +212,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False,
                  identity_file=None, expect_hello=True, timeout=60,
-                 connection_attempts=1,strict_host_key_checking='no'):
+                 connection_attempts=1,strict_host_key_checking=False):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
@@ -221,7 +221,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         self.expect_hello = expect_hello
         self.connection_timeout = timeout
         self.connection_attempts = connection_attempts
-        self.strict_host_key_checking = strict_host_key_checking if strict_host_key_checking in ['yes','no'] else 'no'
+        self.strict_host_key_checking = 'yes' if strict_host_key_checking else 'no'
 
         self.ssh_is_ready = False
 
