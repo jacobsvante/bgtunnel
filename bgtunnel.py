@@ -212,7 +212,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False,
                  identity_file=None, expect_hello=True, timeout=60,
-                 connection_attempts=1):
+                 connection_attempts=1, strict_host_key_checking=None):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
@@ -221,6 +221,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         self.expect_hello = expect_hello
         self.connection_timeout = timeout
         self.connection_attempts = connection_attempts
+        self.strict_host_key_checking = strict_host_key_checking
 
         self.ssh_is_ready = False
 
@@ -271,13 +272,15 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         return u'{}:{}'.format(self.bind_string, self.host_string)
 
     def get_ssh_options(self):
-        def opts(*opts):
-            return [s for opt in opts for s in ['-o', opt]]
-        return opts(
-            'BatchMode=yes',
-            'ConnectionAttempts={}'.format(self.connection_attempts),
-            'ConnectTimeout={}'.format(self.connection_timeout),
-        )
+        opts = []
+        add_opt = lambda k, v: opts.extend(['-o', '{}={}'.format(k, v)])
+        if self.strict_host_key_checking is not None:
+            add_opt('StrictHostKeyChecking',
+                    'yes' if self.strict_host_key_checking else 'no')
+        add_opt('BatchMode', 'Yes')
+        add_opt('ConnectionAttempts', self.connection_attempts)
+        add_opt('ConnectTimeout', self.connection_timeout)
+        return opts
 
     @property
     def cmd(self):
