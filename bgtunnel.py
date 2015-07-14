@@ -277,7 +277,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         if self.strict_host_key_checking is not None:
             add_opt('StrictHostKeyChecking',
                     'yes' if self.strict_host_key_checking else 'no')
-        add_opt('BatchMode', 'Yes')
+        add_opt('BatchMode', 'yes')
         add_opt('ConnectionAttempts', self.connection_attempts)
         add_opt('ConnectTimeout', self.connection_timeout)
         return opts
