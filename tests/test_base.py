@@ -41,7 +41,7 @@ class BaseTestCase(unittest.TestCase):
         assert t.host_address == self.host_address
         assert t.bind_address == self.bind_address
         assert t.get_ssh_options() == [
-            '-o', 'BatchMode=Yes',
+            '-o', 'BatchMode=yes',
             '-o', 'ConnectionAttempts=1',
             '-o', 'ConnectTimeout=60',
         ]
