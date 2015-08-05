@@ -10,3 +10,4 @@ MANIFEST
 .env
 __pycache__
 /build/
+.cache
