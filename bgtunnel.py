@@ -66,7 +66,7 @@ try:
 except ImportError:
     from queue import Queue, Empty  # py3
 
-__version_info__ = (0, 3, 8)
+__version_info__ = (0, 4, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
