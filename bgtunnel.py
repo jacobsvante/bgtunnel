@@ -207,7 +207,7 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         for to_attr, from_attr in zip(attrs, ('address', 'port')):
             setattr(self, to_attr, getattr(from_obj, from_attr))
 
-    def __init__(self, ssh_user=None, ssh_address=None, ssh_port=22,
+    def __init__(self, ssh_address, ssh_user=None, ssh_port=22,
                  bind_address='127.0.0.1', bind_port=None,
                  host_address='127.0.0.1', host_port=None,
                  silent=False, ssh_path=None, dont_sudo=False,
@@ -413,9 +413,9 @@ def main():
         description=main.__doc__,
         formatter_class=RawArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument('ssh_address', help='The ssh address')
     parser.add_argument('-u', '--ssh-user', help='The ssh username')
-    parser.add_argument('-a', '--ssh-address', help='The ssh address')
-    parser.add_argument('-P', '--ssh-port', type=int, default=22,
+    parser.add_argument('-p', '--ssh-port', type=int, default=22,
                         help='The ssh port')
     parser.add_argument('-b', '--bind-address', help="The bind address.")
     parser.add_argument('-B', '--bind-port', type=int, help="The bind port.")
@@ -428,7 +428,11 @@ def main():
                         help="Don't use sudo when a privileged host port is "
                              "specified and not running as root user.")
     args = parser.parse_args()
-    open(**vars(args))
+
+    try:
+        open(**vars(args))
+    except SSHStringValueError as exc:
+        sys.exit(str(exc))
 
     # Keep the process running so the SSH connection doesn't close.
     while True:
