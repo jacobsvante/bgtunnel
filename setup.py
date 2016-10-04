@@ -11,7 +11,8 @@ app = __import__(appname)
 version = app.__version__
 
 
-read = lambda filepath: codecs.open(filepath, 'r', 'utf-8').read()
+def read(filepath):
+    return codecs.open(filepath, 'r', 'utf-8').read()
 
 
 if sys.argv[-1] == 'publish':
@@ -39,8 +40,15 @@ setup(
             'bgtunnel = bgtunnel:main',
         ],
     },
+    extras_require={
+        'test': {
+            'flake8>=3.0.4',
+            'pytest>=3.0.3',
+            'six>=1.10.0',
+        },
+    },
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 3 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: Unix',
