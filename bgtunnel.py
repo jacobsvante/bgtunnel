@@ -81,10 +81,11 @@ class RawArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 
 class UnicodeMagicMixin(object):
-    if sys.version_info > (3, 0):
-        __str__ = lambda x: x.__unicode__()
-    else:
-        __str__ = lambda x: unicode(x).encode('utf-8')  # noqa
+    def __str__(self):
+        if sys.version_info > (3, 0):
+            return self.__unicode__()
+        else:
+            return unicode(self).encode('utf-8')  # noqa
 
 
 class SSHTunnelError(Exception):
@@ -130,8 +131,10 @@ def validate_ssh_cmd_exists(path):
     check_str = u'usage: ssh'
     proc = subp.Popen(('ssh', ), stdout=subp.PIPE, stderr=subp.PIPE)
     stdout, stderr = proc.communicate()
-    if (check_str in stderr.decode('utf-8')
-            or check_str in stdout.decode('utf-8')):
+    if (
+        check_str in stderr.decode('utf-8') or
+        check_str in stdout.decode('utf-8')
+    ):
         return True
     else:
         return False
@@ -275,7 +278,10 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
     def get_ssh_options(self):
         opts = []
-        add_opt = lambda k, v: opts.extend(['-o', '{}={}'.format(k, v)])
+
+        def add_opt(k, v):
+            opts.extend(['-o', '{}={}'.format(k, v)])
+
         if self.strict_host_key_checking is not None:
             add_opt('StrictHostKeyChecking',
                     'yes' if self.strict_host_key_checking else 'no')
