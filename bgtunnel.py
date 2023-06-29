@@ -67,16 +67,18 @@ except ImportError:
     from queue import Queue, Empty  # py3
 
 __version_info__ = (0, 4, 1)
-__version__ = '.'.join(str(i) for i in __version_info__)
+__version__ = ".".join(str(i) for i in __version_info__)
 
 # NOTE: Not including `open` in __all__ as doing `from bgtunnel import *`
 #       would replace the builtin.
-__all__ = ('SSHTunnelForwarderThread', )
+__all__ = ("SSHTunnelForwarderThread",)
 
 
-class RawArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
-                                       argparse.RawTextHelpFormatter):
+class RawArgumentDefaultsHelpFormatter(
+    argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter
+):
     """Retain both raw text descriptions and argument defaults"""
+
     pass
 
 
@@ -85,26 +87,26 @@ class UnicodeMagicMixin(object):
         if sys.version_info > (3, 0):
             return self.__unicode__()
         else:
-            return unicode(self).encode('utf-8')  # noqa
+            return unicode(self).encode("utf-8")  # noqa
 
 
 class SSHTunnelError(Exception):
-    """Raised when SSH connect returns an error """
+    """Raised when SSH connect returns an error"""
 
 
 class SSHStringValueError(Exception):
-    """Raised when a value is invalid for an SSHString object """
+    """Raised when a value is invalid for an SSHString object"""
 
 
 class AddressPortStringValueError(Exception):
-    """Raised when a value is invalid for an AddressPortString object """
+    """Raised when a value is invalid for an AddressPortString object"""
 
 
 class StopSSHTunnel(Exception):
-    """Raised inside SSHTunnelForwarderThread to close the connection """
+    """Raised inside SSHTunnelForwarderThread to close the connection"""
 
 
-ON_POSIX = 'posix' in sys.builtin_module_names
+ON_POSIX = "posix" in sys.builtin_module_names
 
 
 def normalize_path(path):
@@ -116,25 +118,22 @@ def is_root_user():
 
 
 def enqueue_output(out, queue):
-    for line in iter(out.readline, b''):
+    for line in iter(out.readline, b""):
         queue.put(line)
     out.close()
 
 
 def get_ssh_path():
-    proc = subp.Popen(('which', 'ssh'), stdout=subp.PIPE, stderr=subp.PIPE)
+    proc = subp.Popen(("which", "ssh"), stdout=subp.PIPE, stderr=subp.PIPE)
     stdout, stderr = proc.communicate()
-    return stdout.strip().decode('utf-8')
+    return stdout.strip().decode("utf-8")
 
 
 def validate_ssh_cmd_exists(path):
-    check_str = u'usage: ssh'
-    proc = subp.Popen(('ssh', ), stdout=subp.PIPE, stderr=subp.PIPE)
+    check_str = "usage: ssh"
+    proc = subp.Popen(("ssh",), stdout=subp.PIPE, stderr=subp.PIPE)
     stdout, stderr = proc.communicate()
-    if (
-        check_str in stderr.decode('utf-8') or
-        check_str in stdout.decode('utf-8')
-    ):
+    if check_str in stderr.decode("utf-8") or check_str in stdout.decode("utf-8"):
         return True
     else:
         return False
@@ -143,22 +142,20 @@ def validate_ssh_cmd_exists(path):
 def get_available_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Setting to port 0 binds to a random available port
-    s.bind(('127.0.0.1', 0))
+    s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
     return port
 
 
 class SSHString(UnicodeMagicMixin):
-
-    validate_keys = ('user', 'address')
+    validate_keys = ("user", "address")
     user_default = getpass.getuser()
     port_default = 22
     addr_default = None
     exception_class = SSHStringValueError
 
     def __init__(self, user=None, address=None, port=None):
-
         self.user = user or self.user_default
         self.address = address or self.addr_default
         self.port = port or self.port_default
@@ -170,31 +167,30 @@ class SSHString(UnicodeMagicMixin):
             if key not in self.validate_keys:
                 continue
             if not val:
-                raise self.exception_class(u'{} cannot be empty'.format(key))
+                raise self.exception_class("{} cannot be empty".format(key))
 
     def __unicode__(self):
-        return u'{}@{}'.format(self.user, self.address)
+        return "{}@{}".format(self.user, self.address)
 
     def __repr__(self):
-        return u'<{}: {}>'.format(self.__class__.__name__, self)
+        return "<{}: {}>".format(self.__class__.__name__, self)
 
     def parse(self, s):
         user = address = port = None
-        if '@' in s[1:]:
-            user, _, s = s.partition('@')
-        address, _, port = s.partition(':')
+        if "@" in s[1:]:
+            user, _, s = s.partition("@")
+        address, _, port = s.partition(":")
         return (user, address, port)
 
 
 class AddressPortString(SSHString):
-
-    validate_keys = ('address', 'port')
+    validate_keys = ("address", "port")
     port_default = None
-    addr_default = '127.0.0.1'
+    addr_default = "127.0.0.1"
     exception_class = AddressPortStringValueError
 
     def __unicode__(self):
-        return u'{}:{}'.format(self.address, self.port)
+        return "{}:{}".format(self.address, self.port)
 
 
 class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
@@ -206,16 +202,29 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
     daemon = True
 
     def __setattrs(self, from_obj, attrs):
-        assert len(attrs) == 2, 'Wrong length'
-        for to_attr, from_attr in zip(attrs, ('address', 'port')):
+        assert len(attrs) == 2, "Wrong length"
+        for to_attr, from_attr in zip(attrs, ("address", "port")):
             setattr(self, to_attr, getattr(from_obj, from_attr))
 
-    def __init__(self, ssh_address, ssh_user=None, ssh_port=22,
-                 bind_address='127.0.0.1', bind_port=None,
-                 host_address='127.0.0.1', host_port=None,
-                 silent=False, ssh_path=None, dont_sudo=False,
-                 identity_file=None, expect_hello=True, timeout=60,
-                 connection_attempts=1, strict_host_key_checking=None):
+    def __init__(
+        self,
+        ssh_address,
+        ssh_user=None,
+        ssh_port=22,
+        bind_address="127.0.0.1",
+        bind_port=None,
+        host_address="127.0.0.1",
+        host_port=None,
+        silent=False,
+        ssh_path=None,
+        dont_sudo=False,
+        identity_file=None,
+        expect_hello=True,
+        timeout=60,
+        connection_attempts=1,
+        strict_host_key_checking=None,
+        config_file=None,
+    ):
         self.should_exit = False
         self.dont_sudo = dont_sudo
         self.stdout = None
@@ -232,28 +241,30 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         self.silent = silent
 
         # The ssh connect string
-        self.ssh_string = SSHString(user=ssh_user,
-                                    address=ssh_address, port=ssh_port)
+        self.ssh_string = SSHString(user=ssh_user, address=ssh_address, port=ssh_port)
         self.ssh_user = self.ssh_string.user
-        self.__setattrs(self.ssh_string, ('ssh_address', 'ssh_port'))
+        self.__setattrs(self.ssh_string, ("ssh_address", "ssh_port"))
 
         # The host to bind to locally
-        self.bind_string = AddressPortString(address=bind_address,
-                                             port=(bind_port or
-                                                   get_available_port()))
-        self.__setattrs(self.bind_string, ('bind_address', 'bind_port'))
+        self.bind_string = AddressPortString(
+            address=bind_address, port=(bind_port or get_available_port())
+        )
+        self.__setattrs(self.bind_string, ("bind_address", "bind_port"))
 
         # The host on the remote end to connect to
-        self.host_string = AddressPortString(address=host_address,
-                                             port=host_port)
-        self.__setattrs(self.host_string, ('host_address', 'host_port'))
+        self.host_string = AddressPortString(address=host_address, port=host_port)
+        self.__setattrs(self.host_string, ("host_address", "host_port"))
 
         validate_ssh_cmd_exists(self.ssh_path)
 
         # The path to the private key file to use
         self.identity_file = None
         if identity_file is not None:
-            self.identity_file = normalize_path(identity_file or '') or None
+            self.identity_file = normalize_path(identity_file or "") or None
+
+        self.config_file = None
+        if config_file is not None:
+            self.config_file = normalize_path(config_file or "") or None
 
         super(SSHTunnelForwarderThread, self).__init__()
 
@@ -270,24 +281,26 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         return self.forwarder_string
 
     def __repr__(self):
-        return u'<SSHTunnelForwarderThread: {}>'.format(self)
+        return "<SSHTunnelForwarderThread: {}>".format(self)
 
     @property
     def forwarder_string(self):
-        return u'{}:{}'.format(self.bind_string, self.host_string)
+        return "{}:{}".format(self.bind_string, self.host_string)
 
     def get_ssh_options(self):
         opts = []
 
         def add_opt(k, v):
-            opts.extend(['-o', '{}={}'.format(k, v)])
+            opts.extend(["-o", "{}={}".format(k, v)])
 
         if self.strict_host_key_checking is not None:
-            add_opt('StrictHostKeyChecking',
-                    'yes' if self.strict_host_key_checking else 'no')
-        add_opt('BatchMode', 'yes')
-        add_opt('ConnectionAttempts', self.connection_attempts)
-        add_opt('ConnectTimeout', self.connection_timeout)
+            add_opt(
+                "StrictHostKeyChecking",
+                "yes" if self.strict_host_key_checking else "no",
+            )
+        add_opt("BatchMode", "yes")
+        add_opt("ConnectionAttempts", self.connection_attempts)
+        add_opt("ConnectTimeout", self.connection_timeout)
         return opts
 
     @property
@@ -295,26 +308,35 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
         ssh_path = shlex.split(self.ssh_path)
 
         if self.use_sudo:
-            ssh_path = ['sudo'] + ssh_path
+            ssh_path = ["sudo"] + ssh_path
 
         options = self.get_ssh_options()
 
         if self.identity_file is not None:
-            options += ['-i', self.identity_file]
+            options += ["-i", self.identity_file]
 
-        return ssh_path + options + [
-            '-T',
-            '-p', str(self.ssh_string.port),
-            '-L', self.forwarder_string,
-            str(self.ssh_string),
-        ]
+        if self.config_file is not None:
+            options += ["-F", self.config_file]
+
+        return (
+            ssh_path
+            + options
+            + [
+                "-T",
+                "-p",
+                str(self.ssh_string.port),
+                "-L",
+                self.forwarder_string,
+                str(self.ssh_string),
+            ]
+        )
 
     @property
     def cmd_string(self):
         return subp.list2cmdline(self.cmd)
 
     def _get_ssh_process(self):
-        if not hasattr(self, '_process'):
+        if not hasattr(self, "_process"):
             self._process = subp.Popen(
                 self.cmd,
                 stdout=subp.PIPE,
@@ -323,10 +345,12 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
                 close_fds=ON_POSIX,
             )
             if self.use_sudo:
-                print('\nA privileged host port was specified without '
-                      'elevating the process, you might be prompted to enter '
-                      'your sudo password in order to run the ssh process in '
-                      'elevated mode.')
+                print(
+                    "\nA privileged host port was specified without "
+                    "elevating the process, you might be prompted to enter "
+                    "your sudo password in order to run the ssh process in "
+                    "elevated mode."
+                )
         return self._process
 
     def get_output_queue(self, file_handle):
@@ -348,8 +372,9 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
             except Empty:
                 pass
             else:
-                if (stderr_line.strip() and
-                        not (b"Warning: Permanently added" in stderr_line)):
+                if stderr_line.strip() and not (
+                    b"Warning: Permanently added" in stderr_line
+                ):
                     return stderr_line
             try:
                 stdout_line = stdout_queue.get_nowait()
@@ -366,13 +391,14 @@ class SSHTunnelForwarderThread(threading.Thread, UnicodeMagicMixin):
 
     def run(self):
         if not self.silent:
-                print(u'Starting tunnel with command:'
-                      u' {}...'.format(self.cmd_string), end='')
+            print(
+                "Starting tunnel with command:" " {}...".format(self.cmd_string), end=""
+            )
         proc = self._get_ssh_process()
         validation_ret = self._validate_ssh_process(proc)
         if validation_ret is True:
             if not self.silent:
-                print(u'started!')
+                print("started!")
             self.ssh_is_ready = True
         else:
             self.stderr = validation_ret
@@ -419,20 +445,27 @@ def main():
         description=main.__doc__,
         formatter_class=RawArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument('ssh_address', help='The ssh address')
-    parser.add_argument('-u', '--ssh-user', help='The ssh username')
-    parser.add_argument('-p', '--ssh-port', type=int, default=22,
-                        help='The ssh port')
-    parser.add_argument('-b', '--bind-address', help="The bind address.")
-    parser.add_argument('-B', '--bind-port', type=int, help="The bind port.")
-    parser.add_argument('-r', '--host-address', help="The host address.")
-    parser.add_argument('-R', '--host-port', type=int, help="The host port.")
-    parser.add_argument('-i', '--identity-file', help="Identity file path.",
-                        default=None)
-    parser.add_argument('-n', '--no-sudo', dest='dont_sudo',
-                        action='store_const', default=False, const=True,
-                        help="Don't use sudo when a privileged host port is "
-                             "specified and not running as root user.")
+    parser.add_argument("ssh_address", help="The ssh address")
+    parser.add_argument("-u", "--ssh-user", help="The ssh username")
+    parser.add_argument("-p", "--ssh-port", type=int, default=22, help="The ssh port")
+    parser.add_argument("-b", "--bind-address", help="The bind address.")
+    parser.add_argument("-B", "--bind-port", type=int, help="The bind port.")
+    parser.add_argument("-r", "--host-address", help="The host address.")
+    parser.add_argument("-R", "--host-port", type=int, help="The host port.")
+    parser.add_argument(
+        "-i", "--identity-file", help="Identity file path.", default=None
+    )
+    parser.add_argument("-F", "--config-file", help="Config file path.", default=None)
+    parser.add_argument(
+        "-n",
+        "--no-sudo",
+        dest="dont_sudo",
+        action="store_const",
+        default=False,
+        const=True,
+        help="Don't use sudo when a privileged host port is "
+        "specified and not running as root user.",
+    )
     args = parser.parse_args()
 
     try:
@@ -445,5 +478,5 @@ def main():
         time.sleep(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
